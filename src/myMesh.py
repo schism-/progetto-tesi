@@ -110,6 +110,21 @@ def try1():
     time.sleep(3)
     print "AHAHAHAHAHAH!"
 
+def loadElephant():
+    global mesh
+    #LOAD MODEL
+    new_mesh = mMesh(g_fVBOSupported)
+   
+    start = time()
+    new_mesh.loadOBJModel('../res/elephant.obj')
+    print "Model loaded in %f" %(time() - start)
+    print
+
+    new_mesh.VBOVertices = vbo.VBO(new_mesh.vertices)
+    new_mesh.VBONormals = vbo.VBO(new_mesh.normals)
+    
+    mesh = new_mesh
+
 def init(width, height):
 
     global g_fVBOSupported, mesh, mouseInteractor, b1, b2
@@ -119,10 +134,10 @@ def init(width, height):
     #Defining all interface objects
     buttonColor = (0.7, 0.7, 0.7)
     buttonOutlineColor = (0.8, 0.8, 0.8)
-    b1 = Button( 20, 20, 100, 30, buttonColor, buttonOutlineColor, 'Button 1')
-    b2 = Button( 20, 60, 100, 30, buttonColor, buttonOutlineColor, 'Button 2')
+    b1 = Button( 20, 20, 160, 30, buttonColor, buttonOutlineColor, 'Load Elephant')
+    b2 = Button( 20, 60, 160, 30, buttonColor, buttonOutlineColor, 'Try.')
 
-    b1.setCallback(try1)
+    b1.setCallback(loadElephant)
     b2.setCallback(try1)
 
     glClearColor(0.6, 0.6, 0.6, 0.0)
