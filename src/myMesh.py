@@ -15,6 +15,7 @@ from utility.mmesh      import mMesh
 from utility.drawfunctions import *
 
 from utility.gui.button import Button
+from utility.gui.slider import Slider
 
 from mouseInteractor import MouseInteractor
 
@@ -127,7 +128,7 @@ def loadElephant():
 
 def init(width, height):
 
-    global g_fVBOSupported, mesh, mouseInteractor, b1, b2
+    global g_fVBOSupported, mesh, mouseInteractor, b1, b2, sl1
     #Check for VBOs Support
     g_fVBOSupported = IsExtensionSupported("GL_ARB_vertexbuffer_object")
 
@@ -136,9 +137,11 @@ def init(width, height):
     buttonOutlineColor = (0.8, 0.8, 0.8)
     b1 = Button( 20, 20, 160, 30, buttonColor, buttonOutlineColor, 'Load Elephant')
     b2 = Button( 20, 60, 160, 30, buttonColor, buttonOutlineColor, 'Try.')
-
+    
     b1.setCallback(loadElephant)
     b2.setCallback(try1)
+
+    sl1 = Slider( 150, SCREEN_SIZE[0] - 50, 50 )
 
     glClearColor(0.6, 0.6, 0.6, 0.0)
     glEnable(GL_DEPTH_TEST)
@@ -161,7 +164,7 @@ def init(width, height):
     glMaterialfv( GL_FRONT_AND_BACK, GL_SPECULAR, [0.5, 0.5, 0.5, 1] )
     glMaterialf( GL_FRONT_AND_BACK, GL_SHININESS, 50 )
     
-    mouseInteractor = MouseInteractor( .01, 1 , [b1, b2])
+    mouseInteractor = MouseInteractor( .01, 1 , [b1, b2, sl1])
 
     #LOAD MODEL
     mesh = mMesh(g_fVBOSupported)
@@ -209,9 +212,10 @@ def drawScene():
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-    global b1,b2
-    b1.drawButton()
-    b2.drawButton()
+    global b1, b2, sl1
+    b1.draw()
+    b2.draw()
+    sl1.draw()
 
     glEnable( GL_LIGHTING )
     

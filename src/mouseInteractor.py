@@ -32,21 +32,23 @@ class MouseInteractor ( object ):
         self.translationMatrix = InteractionMatrix( )
         self.mouseButtonPressed = None
         self.oldMousePos = [ 0, 0 ]
+        
         self.interface = interface
+        self.zoomSlider = False
 
     def mouseButton( self, button, mode, x, y ):
         """Callback function for mouse button."""
         if mode == GLUT_DOWN:
-            guiPressed, bPressed = self.checkGUI(x, y)
+            guiPressed, bPressed = self.checkGUI(x, y, True)
             if (not guiPressed):
-                self.mouseButtonPressed = button                    
+                self.mouseButtonPressed = button
+                self.zoomSlider = False
             else:
                 #Some button of the GUI was pressed (saved in bPressed)
-                
                 #Don't register the button click as a simple mouse action (to disable model re-rendering)
                 self.mouseButtonPressed = None
                 
-                if (bPressed.disabled == False):
+                if (bPressed.enableCallback and bPressed.disabled == False):
                     print 'button pressed'
                     bPressed.disabled = True
         
@@ -59,11 +61,17 @@ class MouseInteractor ( object ):
                     print "Thread status: " + str(thread.is_alive())
                     
                     print "Doing other stuff blah blah blah"
+                
+                if (bPressed.type == "Slider"):
+                    print "Interaction with slider"
+                    self.zoomSlider = True
         else:
             self.mouseButtonPressed = None
+            self.zoomSlider = False
     
-        if (not self.checkGUI(x, y)[0]):
-            self.oldMousePos[0], self.oldMousePos[1] = x, y
+        self.oldMousePos[0], self.oldMousePos[1] = x, y
+    
+        if (not self.checkGUI(x, y, True)[0]):
             glutPostRedisplay( )
 
     def mouseMotion( self, x, y ):
@@ -71,7 +79,7 @@ class MouseInteractor ( object ):
         Depending on the button pressed, the displacement of the
         mouse pointer is either converted into a translation vector
         or a rotation matrix."""
-
+        
         deltaX = x - self.oldMousePos[ 0 ]
         deltaY = y - self.oldMousePos[ 1 ]
         if self.mouseButtonPressed == GLUT_RIGHT_BUTTON:
@@ -83,21 +91,24 @@ class MouseInteractor ( object ):
             self.rotationMatrix.addRotation(rY, 0, 1, 0)
             rX = deltaY * self.scalingFactorRotation
             self.rotationMatrix.addRotation(rX, 1, 0, 0)
-        else:
-            if (not self.checkGUI(x, y)[0]):
+        elif self.mouseButtonPressed == 1:
+            if (not self.checkGUI(x, y, True)[0]):
                 tZ = deltaY * self.scalingFactorTranslation
                 self.translationMatrix.addTranslation(0, 0, tZ)
-    
+                
         self.oldMousePos[0], self.oldMousePos[1] = x, y
         glutPostRedisplay( )
 
     def mousePassiveMotion(self, x, y):
         for b in self.interface:
-            if self.checkButton(x, y, b):
-                b.highlighted = True
+            if (b.enableHighlighting):
+                if (b.checkHit(x, y, False)):
+                    b.highlighted = True
+                else:
+                    b.highlighted = False
             else:
-                b.highlighted = False
-
+                b.mouseUp()
+                    
     def applyTransformation( self ):
         global thread, buttonThread
         if(not(thread == None)):
@@ -106,6 +117,19 @@ class MouseInteractor ( object ):
                 buttonThread.disabled = False
                 thread = None
                   
+        if self.zoomSlider:
+            sl = None
+            for b in self.interface:
+                if b.type == "Slider":
+                    sl = b
+                    break
+            if (sl.checkHit(self.oldMousePos[0], self.oldMousePos[1], True)):
+                tZ = sl.offset * 0.001
+                self.translationMatrix.addTranslation(0, 0, tZ)          
+        else:
+            for b in self.interface:
+                b.mouseUp()
+            
         """Concatenation of the current translation and rotation
           matrices with the current OpenGL transformation matrix"""
 
@@ -118,19 +142,13 @@ class MouseInteractor ( object ):
         glutMotionFunc( self.mouseMotion )
         glutPassiveMotionFunc( self.mousePassiveMotion );
 
-    def checkGUI(self, x, y):
+    def checkGUI(self, x, y, click):
         somethingPressed = False
         buttonPressed = None
         for b in self.interface:
-            if (self.checkButton(x, y, b)):
+            if (b.checkHit(x, y, click)):
                 somethingPressed = True
                 buttonPressed = b
         
         return (somethingPressed, buttonPressed)
-
-    def checkButton(self, x, y, b):
-        if ((x > b.x) and (x < b.x + b.w)):
-            if ((y > b.y) and (y < b.y + b.h)):
-                return True
-        return False
-        
+     

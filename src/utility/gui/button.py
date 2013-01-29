@@ -14,7 +14,11 @@ class Button(object):
         self.label = label
         self.fontx = self.x + (self.w - len(self.label) * glutBitmapWidth(GLUT_BITMAP_TIMES_ROMAN_24, ord('a'))) / 2
         self.fonty = self.y + (self.h + 14) / 2;
-
+        
+        self.enableHighlighting = True
+        self.enableCallback = True
+        self.type = "Button"
+        
         self.highlighted = False
         self.disabled = False
         self.callback = None
@@ -22,7 +26,16 @@ class Button(object):
     def setCallback(self, c):
         self.callback = c
         
-    def drawButton(self):
+    def checkHit(self, x, y, click):
+        if ((x > self.x) and (x < self.x + self.w)):
+            if ((y > self.y) and (y < self.y + self.h)):
+                return True
+        return False
+    
+    def mouseUp(self):
+        pass
+    
+    def draw(self):
         
         if (self.disabled):
             glColor3f(0.4, 0.4, 0.4)
