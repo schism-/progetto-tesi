@@ -6,6 +6,8 @@ from OpenGL.arrays import vbo
 
 from OpenGL.GL.ARB.vertex_buffer_object import *
 
+from utility.check_extension import *
+
 from utility.mvertex    import mVertex
 from utility.mnormal    import mNormal
 from utility.mtexcoord  import mTexCoord
@@ -33,7 +35,9 @@ SHAPE = ''
 lastx=0
 lasty=0
 
-mesh = None
+meshes_loaded = []
+
+gui_objects = []
 thread = None
 buttonThread = None
 
@@ -41,78 +45,13 @@ buttonThread = None
     ========== UTILITY FUNCTIONS ==========
 '''
 
-def IsExtensionSupported (TargetExtension):
-    """ Accesses the rendering context to see if it supports an extension.
-	Note, that this test only tells you if the OpenGL library supports
-	the extension. The PyOpenGL system might not actually support the extension.
-    """
-    Extensions = glGetString (GL_EXTENSIONS)
-    # python 2.3
-    # if (not TargetExtension in Extensions):
-    #	gl_supports_extension = False
-    #	print "OpenGL does not support '%s'" % (TargetExtension)
-    #	return False
-
-    # python 2.2
-    Extensions = Extensions.split ()
-    found_extension = False
-    for extension in Extensions:
-            if extension == TargetExtension:
-                    found_extension = True
-                    break;
-    if (found_extension == False):
-            gl_supports_extension = False
-            print "OpenGL rendering context does not support '%s'" % (TargetExtension)
-            return False
-
-    gl_supports_extension = True
-
-    # Now determine if Python supports the extension
-    # Exentsion names are in the form GL_<group>_<extension_name>
-    # e.g.  GL_EXT_fog_coord 
-    # Python divides extension into modules
-    # g_fVBOSupported = IsExtensionSupported ("GL_ARB_vertex_buffer_object")
-    # from OpenGL.GL.EXT.fog_coord import *
-    if (TargetExtension [:3] != "GL_"):
-            # Doesn't appear to following extension naming convention.
-            # Don't have a means to find a module for this exentsion type.
-            return False
-
-    # extension name after GL_
-    afterGL = TargetExtension [3:]
-    try:
-            group_name_end = afterGL.index ("_")
-    except:
-            # Doesn't appear to following extension naming convention.
-            # Don't have a means to find a module for this exentsion type.
-            return False
-
-    group_name = afterGL [:group_name_end]
-    extension_name = afterGL [len (group_name) + 1:]
-    extension_module_name = "OpenGL.GL.ARB.%s" % (extension_name)
-
-    import traceback
-    try:
-            __import__ (extension_module_name)
-            print "PyOpenGL supports '%s'" % (TargetExtension)
-    except:
-            traceback.print_exc()
-            print 'Failed to import', extension_module_name
-            print "OpenGL rendering context supports '%s'" % (TargetExtension),
-            return False
-
-    return True
-
-'''
-    =========== MAIN FUNCTIONS ============
-'''
 def try1():
     import time
     time.sleep(3)
     print "AHAHAHAHAHAH!"
 
 def loadElephant():
-    global mesh
+    global meshes_loaded
     #LOAD MODEL
     new_mesh = mMesh(g_fVBOSupported)
    
@@ -124,33 +63,71 @@ def loadElephant():
     new_mesh.VBOVertices = vbo.VBO(new_mesh.vertices)
     new_mesh.VBONormals = vbo.VBO(new_mesh.normals)
     
-    mesh = new_mesh
+    meshes_loaded = [new_mesh]
+
+'''
+    =========== MAIN FUNCTIONS ============
+'''
+
+def loadModel(m, path, segpath):
+    m.loadModel(path, segpath)
+    m.VBOVertices = vbo.VBO(m.vertices)
+    m.VBONormals = vbo.VBO(m.normals)
+    m.VBOColors = vbo.VBO(m.colors)
+
+def drawModel(m):
+    m.VBOVertices.bind()
+    glEnableClientState(GL_VERTEX_ARRAY)
+    glVertexPointer(3, GL_FLOAT, 0, m.VBOVertices)
+
+    m.VBONormals.bind()
+    glEnableClientState(GL_NORMAL_ARRAY)
+    glNormalPointer(GL_FLOAT, 0, m.VBONormals)
+    
+    if (m.VBOColors is not None):
+        m.VBOColors.bind()
+        glEnableClientState(GL_COLOR_ARRAY)
+        glColorPointer(3, GL_FLOAT, 0, m.VBOColors)
+    else:
+        glDisableClientState(GL_COLOR_ARRAY)
+        pass
+    
+    glDrawArrays(GL_TRIANGLES, 0, len(m.vertices))
 
 def init(width, height):
 
-    global g_fVBOSupported, mesh, mouseInteractor, b1, b2, sl1
+    global g_fVBOSupported, meshes_loaded, gui_objects, mouseInteractor
     #Check for VBOs Support
     g_fVBOSupported = IsExtensionSupported("GL_ARB_vertexbuffer_object")
 
     #Defining all interface objects
     buttonColor = (0.7, 0.7, 0.7)
     buttonOutlineColor = (0.8, 0.8, 0.8)
-    b1 = Button( 20, 20, 160, 30, buttonColor, buttonOutlineColor, 'Load Elephant')
-    b2 = Button( 20, 60, 160, 30, buttonColor, buttonOutlineColor, 'Try.')
     
+    b1 = Button( 20, 20, 160, 30, buttonColor, buttonOutlineColor, 'Load Elephant')
     b1.setCallback(loadElephant)
+    
+    b2 = Button( 20, 60, 160, 30, buttonColor, buttonOutlineColor, 'Try.')
     b2.setCallback(try1)
 
     sl1 = Slider( 150, SCREEN_SIZE[0] - 50, 50 )
-
+    
+    gui_objects.append(b1)
+    gui_objects.append(b2)
+    gui_objects.append(sl1)
+    
     glClearColor(0.6, 0.6, 0.6, 0.0)
+    
+    #Define openGL rendering behaviours
     glEnable(GL_DEPTH_TEST)
     glShadeModel(GL_SMOOTH)
-
+    glEnable(GL_COLOR_MATERIAL)
+    
+    #Define lightning
     glEnable( GL_LIGHTING )
     glEnable( GL_LIGHT0 )
     glLightModeli( GL_LIGHT_MODEL_TWO_SIDE, 0 )
-    lP = 1000
+    lP = 600
     glLightfv( GL_LIGHT0, GL_POSITION, [lP, lP, lP, 1] )
     lA = 0.8
     glLightfv( GL_LIGHT0, GL_AMBIENT, [lA, lA, lA, 1] )
@@ -160,25 +137,30 @@ def init(width, height):
     glLightfv( GL_LIGHT0, GL_SPECULAR, [lS, lS, lS, 1] )
     
     glMaterialfv( GL_FRONT_AND_BACK, GL_AMBIENT, [0.1, 0.1, 0.1, 1] )
-    glMaterialfv( GL_FRONT_AND_BACK, GL_DIFFUSE, [0.2, 0.2, 0.2, 1] )
-    glMaterialfv( GL_FRONT_AND_BACK, GL_SPECULAR, [0.5, 0.5, 0.5, 1] )
+    glMaterialfv( GL_FRONT_AND_BACK, GL_DIFFUSE, [0.4, 0.4, 0.4, 1] )
+    glMaterialfv( GL_FRONT_AND_BACK, GL_SPECULAR, [0.7, 0.6, 0.6, 1] )
     glMaterialf( GL_FRONT_AND_BACK, GL_SHININESS, 50 )
     
-    mouseInteractor = MouseInteractor( .01, 1 , [b1, b2, sl1])
+    mouseInteractor = MouseInteractor( .01, 1 , gui_objects)
 
     #LOAD MODEL
     mesh = mMesh(g_fVBOSupported)
-   
+    mesh_2 = mMesh(g_fVBOSupported)
+    mesh_3 = mMesh(g_fVBOSupported)
     start = time()
-    mesh.loadOBJModel('../res/elf-tri.obj')
-    print "Model loaded in %f" %(time() - start)
+    loadModel(mesh, '../res/chairs/shapes/102.off', '../res/chairs/gt/102.seg')
+    loadModel(mesh_2, '../res/chairs/shapes/103.off', '../res/chairs/gt/103.seg')
+    loadModel(mesh_3, '../res/chairs/shapes/109.off', '../res/chairs/gt/109.seg')
+    print "Models loaded in %f" %(time() - start)
     print
-
-    mesh.VBOVertices = vbo.VBO(mesh.vertices)
-    mesh.VBONormals = vbo.VBO(mesh.normals)
+    
+    meshes_loaded.append(mesh)
+    meshes_loaded.append(mesh_2)
+    meshes_loaded.append(mesh_3)
     
 def drawScene():
-    global mouseInteractor, mesh, SHAPE, thread, buttonThread
+    
+    global gui_objects, meshes_loaded
     
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
@@ -189,19 +171,14 @@ def drawScene():
     glMatrixMode( GL_MODELVIEW )
     glLoadIdentity()
 
-    glTranslatef( 0, -1, -30 )
+    glTranslatef( 0, 0, -5 )
     mouseInteractor.applyTransformation()
 
     #Draw all the stuff here
-    mesh.VBOVertices.bind()
-    glEnableClientState(GL_VERTEX_ARRAY)
-    glVertexPointer(3, GL_FLOAT, 0, mesh.VBOVertices)
 
-    mesh.VBONormals.bind()
-    glEnableClientState(GL_NORMAL_ARRAY)
-    glNormalPointer(GL_FLOAT, 0, mesh.VBONormals)
-    
-    glDrawArrays(GL_TRIANGLES, 0, len(mesh.vertices))
+    for m in meshes_loaded:
+        drawModel(m)
+        glTranslatef( 2, 0, 0 )
 
     #Draw all the interface here
     glDisable( GL_LIGHTING )
@@ -211,11 +188,9 @@ def drawScene():
     glOrtho(0, float(xSize), float(ySize), 0, -1, 1);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-
-    global b1, b2, sl1
-    b1.draw()
-    b2.draw()
-    sl1.draw()
+    
+    for obj in gui_objects:
+        obj.draw()
 
     glEnable( GL_LIGHTING )
     
