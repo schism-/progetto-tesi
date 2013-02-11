@@ -65,6 +65,45 @@ def loadElephant():
     
     meshes_loaded = [new_mesh]
 
+def drawAxis():
+    glColor(1.0, 0.0, 0.0)
+    glBegin(GL_LINE_STRIP)
+    glVertex3f(0.0, 0.0, 0.0)
+    glVertex3f(0.5, 0.0, 0.0)
+    glEnd()
+    glBegin(GL_LINE_STRIP)
+    glVertex3f(0.0, 0.0, 0.0)
+    glVertex3f(0.0, 0.5, 0.0)
+    glEnd()
+    glBegin(GL_LINE_STRIP)
+    glVertex3f(0.0, 0.0, 0.0)
+    glVertex3f(0.0, 0.0, 0.5)
+    glEnd()
+    glColor(0.0, 0.0, 0.0)
+    glRasterPos3f( 0.5, 0.0, 0.0 )
+    glutBitmapCharacter( GLUT_BITMAP_TIMES_ROMAN_10, ord('x') )
+    glRasterPos3f( 0.0, 0.5, 0.0 )
+    glutBitmapCharacter( GLUT_BITMAP_TIMES_ROMAN_10, ord('y') )
+    glRasterPos3f( 0.0, 0.0, 0.5 )
+    glutBitmapCharacter( GLUT_BITMAP_TIMES_ROMAN_10, ord('z') )
+
+def drawBBox(bbox):
+    bbox_idx = [
+                [0, 3, 2, 1],
+                [4, 5, 6, 7],
+                [0, 4, 7, 3],
+                [1, 2, 6, 5],
+                [0, 1, 5, 4],
+                [2, 3, 7, 6]
+               ]
+    
+    for face in bbox_idx:
+        glBegin(GL_LINE_STRIP)
+        for idx in face:
+            glVertex3f(*bbox[idx])
+        glVertex3f(*bbox[face[0]])
+        glEnd()
+
 '''
     =========== MAIN FUNCTIONS ============
 '''
@@ -93,6 +132,32 @@ def drawModel(m):
         pass
     
     glDrawArrays(GL_TRIANGLES, 0, len(m.vertices))
+
+def drawBBoxes(m):
+    for b in m.bboxes:
+        drawBBox(b)
+
+def drawSegments(m):
+    seg = m.segmentVertices[0]
+
+    vertices = numpy.zeros ((len(seg), 3), 'f')
+    
+    #print seg.tolist()
+    vIndex = 0
+    for idx in seg:
+        vertices[vIndex, 0] = m.vertices[idx[0], 0]
+        vertices[vIndex, 1] = m.vertices[idx[0], 1]
+        vertices[vIndex, 2] = m.vertices[idx[0], 2]
+
+        vIndex += 1
+
+    
+    VBOVertices = vbo.VBO(vertices)
+    
+    VBOVertices.bind()
+    glEnableClientState(GL_VERTEX_ARRAY)
+    glVertexPointer(3, GL_FLOAT, 0, VBOVertices)
+    glDrawArrays(GL_TRIANGLES, 0, len(vertices))
 
 def init(width, height):
 
@@ -144,19 +209,33 @@ def init(width, height):
     mouseInteractor = MouseInteractor( .01, 1 , gui_objects)
 
     #LOAD MODEL
+    start = time()
     mesh = mMesh(g_fVBOSupported)
     mesh_2 = mMesh(g_fVBOSupported)
     mesh_3 = mMesh(g_fVBOSupported)
-    start = time()
-    loadModel(mesh, '../res/chairs/shapes/102.off', '../res/chairs/gt/102.seg')
-    loadModel(mesh_2, '../res/chairs/shapes/103.off', '../res/chairs/gt/103.seg')
-    loadModel(mesh_3, '../res/chairs/shapes/109.off', '../res/chairs/gt/109.seg')
-    print "Models loaded in %f" %(time() - start)
-    print
+    mesh_4 = mMesh(g_fVBOSupported)
+    mesh_5 = mMesh(g_fVBOSupported)
+    
+    loadModel(mesh, '../res/chairs/shapes/101.off', '../res/chairs/gt/101.seg')
+    loadModel(mesh_2, '../res/chairs/shapes/102.off', '../res/chairs/gt/102.seg')
+    loadModel(mesh_3, '../res/chairs/shapes/103.off', '../res/chairs/gt/103.seg')
+    loadModel(mesh_4, '../res/chairs/shapes/109.off', '../res/chairs/gt/109.seg')
+    loadModel(mesh_5, '../res/chairs/shapes/110.off', '../res/chairs/gt/110.seg')
+        
+    #loadModel(mesh, '../res/chairs/json', '101')
+    #loadModel(mesh_2, '../res/chairs/json', '102')
+    #loadModel(mesh_3, '../res/chairs/json', '103')
+    #loadModel(mesh_4, '../res/chairs/json', '109')
+    #loadModel(mesh_5, '../res/chairs/json', '110')
     
     meshes_loaded.append(mesh)
     meshes_loaded.append(mesh_2)
     meshes_loaded.append(mesh_3)
+    meshes_loaded.append(mesh_4)
+    meshes_loaded.append(mesh_5)
+    
+    print "Models loaded in %f" %(time() - start)
+    print
     
 def drawScene():
     
@@ -174,12 +253,29 @@ def drawScene():
     glTranslatef( 0, 0, -5 )
     mouseInteractor.applyTransformation()
 
+    #Draw axis (for reference)
+    drawAxis()
+    
     #Draw all the stuff here
-
+    glPushMatrix()
     for m in meshes_loaded:
         drawModel(m)
         glTranslatef( 2, 0, 0 )
-
+    glPopMatrix()
+    
+    if (True):
+        glPushMatrix()
+        for m in meshes_loaded:
+            drawBBoxes(m)
+            glTranslatef( 2, 0, 0 )
+        glPopMatrix()
+    
+    #===========================================================================
+    # glTranslatef( 3, 0, 0 )
+    # for m in meshes_loaded:
+    #    drawSegments(m)
+    #===========================================================================
+            
     #Draw all the interface here
     glDisable( GL_LIGHTING )
     

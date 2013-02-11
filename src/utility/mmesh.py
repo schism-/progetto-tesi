@@ -1,10 +1,13 @@
 import math
+import os
 import random
 import numpy
 from time import time
 
 from OpenGL.GL.ARB.vertex_buffer_object import *
 from numpy.ma.core import sqrt
+
+from OBB import obb
 
 g_fVBOSupported = False;    # ARB_vertex_buffer_object supported?
 
@@ -33,6 +36,10 @@ class mMesh:
 
         self.colors = None
 
+        self.segmentVertices = []
+        
+        self.bboxes = []
+
         self.VBOVertices = None
         self.VBOTexCoords = None
         self.VBONormals = None
@@ -44,10 +51,35 @@ class mMesh:
         if ( (ext == 'obj' ) or (ext == 'OBJ') ):
             print "Loading an OBJ model"
             self.loadOBJModel(path)
-        if ( (ext == 'off' ) or (ext == 'OFF') ):
+        elif ( (ext == 'off' ) or (ext == 'OFF') ):
             print "Loading an OFF model"
             self.loadOFFModel(path, segpath)
+        else:
+            print "Loading a JSON model"
+            self.loadJSONModel(path, segpath)
             
+    def loadJSONModel(self, path, name):
+        '''
+        import json
+        file_v = open(path + name + '_v.json', 'r')
+        buffer_v = file_v.readline()
+        print buffer_v[:300]
+        json_v = json.loads(buffer_v)
+        self.vertices = numpy.fromiter(json_v, 'f')
+        file_v.close()
+        
+        print "Vertices:" + self.vertices[:50]
+        
+        file_n = open(path + name + '_n.json', 'r')
+        self.normals = numpy.fromiter(json.loads(file_n.readlines()), 'f')
+        file_n.close()
+        '''
+        self.vertices = numpy.load(path + "/" + name + '_v.npy')
+        self.normals = numpy.load(path + "/" + name + '_n.npy')
+        self.colors = numpy.load(path + "/" + name + '_c.npy')
+        self.segmentVertices = numpy.load(path + "/" + name + '_sv.npy')
+        self.bboxes = numpy.load(path + "/" + name + '_bb.npy')
+        
         
     def loadOFFModel(self, path, segpath=''):
         
@@ -72,23 +104,35 @@ class mMesh:
         self.texCoordCount = int (vertCount)
         self.normalCount = int (normalCount)
 
-        tempVertices = numpy.zeros ((self.vertexCount, 3), 'f')
+        tempVertices = numpy.zeros((self.vertexCount, 3), 'f')
         tempTexCoords = numpy.zeros ((self.texCoordCount, 2), 'f')
         
         self.vertices = numpy.zeros ((self.faceCount * 3, 3), 'f')
         self.normals = numpy.zeros ((self.faceCount * 3, 3), 'f')
         self.texCoords = numpy.zeros ((self.faceCount * 3, 2), 'f')
         
+        print "Vertices detected: " + str(self.vertexCount) + " --> " + str(len(self.vertices))
+        print "Faces detected: " + str(self.faceCount)
         
         segments = open(segpath, 'r')
         max_segments = 0
-        segment_map = numpy.zeros ((self.faceCount * 3, 1), 'i')
+        segment_map = numpy.zeros ((self.faceCount, 1), 'i')
         segment_index = 0
+        segment_count = {}
         for line in segments:
             if int(line) > max_segments:
                 max_segments = int(line)
+            if (not (int(line) in segment_count)):
+                segment_count[int(line)] = 1
+            else:
+                segment_count[int(line)] += 1
             segment_map[segment_index] = int(line)
             segment_index += 1
+            
+        for x in segment_count.keys():
+            self.segmentVertices.append( numpy.zeros ((segment_count[x] * 3, 1), 'i') )
+
+        print "Segment counts: " + str(segment_count)
         
         color_map = []
         random.seed(int(time()))
@@ -96,13 +140,9 @@ class mMesh:
             color_map.append( ( random.random(), random.random(), random.random() ) )
         
         self.colors = numpy.zeros ((self.faceCount * 3, 3), 'f')
-        '''
-        for x in range( len(self.colors) ):
-            self.colors[x][0] = color_map[ segment_map[x] - 1 ][0]
-            self.colors[x][1] = color_map[ segment_map[x] - 1 ][1]
-            self.colors[x][2] = color_map[ segment_map[x] - 1 ][2]
-        '''
+        
         #Retrieving temp vertices
+        start = time()
         vIndex = 0
         tIndex = 0
         for line in model:
@@ -117,12 +157,22 @@ class mMesh:
                 
                 vIndex += 1
                 tIndex += 1
+        print "Temp Vertices loaded in " + str(time() - start)
         
         #Populating vertex and face arrays
+        start = time()
         model = open(path, 'r')
         vIndex = 0
         nIndex = 0
         fIndex = 0
+        sIndex = [0,] * len(segment_count.keys())
+        
+        #=======================================================================
+        # segments_obb = []
+        # for x in segment_count.keys():
+        #    segments_obb.append( numpy.zeros ((segment_count[x] * 3, 3), 'f') )
+        #=======================================================================
+        
         for line in model:
             data = line.split(' ')
             if (len(data) == 4):
@@ -139,10 +189,22 @@ class mMesh:
                         self.colors[vIndex, 1] = color_map[ segment_map[fIndex] - 1 ][1]
                         self.colors[vIndex, 2] = color_map[ segment_map[fIndex] - 1 ][2]
                         
+                        #Creating vertex arrays for single segments
+                        self.segmentVertices[ segment_map[fIndex] - 1 ][ sIndex[segment_map[fIndex] - 1] ] = vIndex
+                        
                         vIndex += 1
                         
                         temp.append( [tempVertices[d,0],tempVertices[d,1],tempVertices[d,2]] )
-                    
+                        
+                        #=======================================================
+                        # segments_obb[segment_map[fIndex] - 1][sIndex[segment_map[fIndex] - 1], 0] = tempVertices[d,0]
+                        # segments_obb[segment_map[fIndex] - 1][sIndex[segment_map[fIndex] - 1], 1] = tempVertices[d,1]
+                        # segments_obb[segment_map[fIndex] - 1][sIndex[segment_map[fIndex] - 1], 2] = tempVertices[d,2]
+                        #=======================================================
+                        
+                        sIndex[segment_map[fIndex] - 1] += 1
+                        
+                        
                     fIndex += 1
                     
                     edge1 = [   temp[0][0] - temp[1][0], 
@@ -170,6 +232,46 @@ class mMesh:
                     #Quad
                     print "QUAD DETECTED!"
                     pass
+        print "Vertex,Color and Normal Array loaded in " + str(time() - start)
+        
+        #Computing OBB for all segmented components
+        
+        segments_obb = []
+        for s in self.segmentVertices:
+            vertices = numpy.zeros ((len(s), 3), 'f')
+            
+            vIndex = 0
+            for idx in s:
+                vertices[vIndex, 0] = self.vertices[idx[0], 0]
+                vertices[vIndex, 1] = self.vertices[idx[0], 1]
+                vertices[vIndex, 2] = self.vertices[idx[0], 2]
+                vIndex += 1
+            
+            segments_obb.append(vertices)
+            
+        for s_v in segments_obb:
+            self.bboxes.append(obb.computeOBB_2(s_v))
+        
+        #self.bboxes.append(obb.computeOBB_2(self.vertices))
+        
+        self.bboxes = numpy.array(self.bboxes)
+        
+        #Saving all the data collected
+        path_parts = path.split('/')
+        directory = '/'.join(path_parts[:-2])
+        directory += "/json"
+        print "dir: " + directory
+        filename = (path_parts[-1].split('.'))[-2]
+        print "filename: " + filename 
+        
+        if( not os.path.isdir(directory) ):
+            os.mkdir(directory)
+            
+        numpy.save(directory + "/" + filename + "_v", self.vertices)
+        numpy.save(directory + "/" + filename + "_n", self.normals)
+        numpy.save(directory + "/" + filename + "_c", self.colors)
+        numpy.save(directory + "/" + filename + "_sv", self.segmentVertices)
+        numpy.save(directory + "/" + filename + "_bb", self.bboxes)
         
         self.verticesAsString = self.vertices.tostring()
         
