@@ -8,6 +8,7 @@ from OpenGL.GL.ARB.vertex_buffer_object import *
 from numpy.ma.core import sqrt
 
 from OBB import obb
+from curvature import *
 
 g_fVBOSupported = False;    # ARB_vertex_buffer_object supported?
 
@@ -39,6 +40,9 @@ class mMesh:
         self.segmentVertices = []
         
         self.bboxes = []
+        self.eigen_features = []
+        
+        self.curvature_hist = []
 
         self.VBOVertices = None
         self.VBOTexCoords = None
@@ -59,26 +63,13 @@ class mMesh:
             self.loadJSONModel(path, segpath)
             
     def loadJSONModel(self, path, name):
-        '''
-        import json
-        file_v = open(path + name + '_v.json', 'r')
-        buffer_v = file_v.readline()
-        print buffer_v[:300]
-        json_v = json.loads(buffer_v)
-        self.vertices = numpy.fromiter(json_v, 'f')
-        file_v.close()
-        
-        print "Vertices:" + self.vertices[:50]
-        
-        file_n = open(path + name + '_n.json', 'r')
-        self.normals = numpy.fromiter(json.loads(file_n.readlines()), 'f')
-        file_n.close()
-        '''
         self.vertices = numpy.load(path + "/" + name + '_v.npy')
         self.normals = numpy.load(path + "/" + name + '_n.npy')
         self.colors = numpy.load(path + "/" + name + '_c.npy')
         self.segmentVertices = numpy.load(path + "/" + name + '_sv.npy')
         self.bboxes = numpy.load(path + "/" + name + '_bb.npy')
+        self.curvature_hist = numpy.load(path + "/" + name + '_ch.npy')
+        self.eigen_features = numpy.load(path + "/" + name + '_ef.npy')
         
         
     def loadOFFModel(self, path, segpath=''):
@@ -146,8 +137,10 @@ class mMesh:
         vIndex = 0
         tIndex = 0
         for line in model:
-            data = line.split(' ')
+            data = line.strip().split(' ')
+            #print "data " + str(data)
             if (len(data) == 3):
+                
                 tempVertices[vIndex, 0] = float(data[0])
                 tempVertices[vIndex, 1] = float(data[1])
                 tempVertices[vIndex, 2] = float(data[2])
@@ -157,6 +150,8 @@ class mMesh:
                 
                 vIndex += 1
                 tIndex += 1
+        print "Temp Vertices: " + str(len(tempVertices))
+        print "Sample: " + str(tempVertices[:5])
         print "Temp Vertices loaded in " + str(time() - start)
         
         #Populating vertex and face arrays
@@ -195,7 +190,6 @@ class mMesh:
                         vIndex += 1
                         
                         temp.append( [tempVertices[d,0],tempVertices[d,1],tempVertices[d,2]] )
-                        
                         #=======================================================
                         # segments_obb[segment_map[fIndex] - 1][sIndex[segment_map[fIndex] - 1], 0] = tempVertices[d,0]
                         # segments_obb[segment_map[fIndex] - 1][sIndex[segment_map[fIndex] - 1], 1] = tempVertices[d,1]
@@ -235,7 +229,6 @@ class mMesh:
         print "Vertex,Color and Normal Array loaded in " + str(time() - start)
         
         #Computing OBB for all segmented components
-        
         segments_obb = []
         for s in self.segmentVertices:
             vertices = numpy.zeros ((len(s), 3), 'f')
@@ -250,11 +243,19 @@ class mMesh:
             segments_obb.append(vertices)
             
         for s_v in segments_obb:
-            self.bboxes.append(obb.computeOBB_2(s_v))
+            self.bboxes.append(obb.computeOBB_2(s_v)[0])
+            self.eigen_features.append(obb.computeOBB_2(s_v)[1])
         
         #self.bboxes.append(obb.computeOBB_2(self.vertices))
-        
         self.bboxes = numpy.array(self.bboxes)
+        self.eigen_features = numpy.array(self.eigen_features)
+        
+        #Computing curvature histograms for all components
+        po = CurvaturesDemo()
+        for s_v in segments_obb:
+            hist_4, hist_8, hist_16 = po.compute_curvatures(s_v)
+            self.curvature_hist.append([ hist_4[1], hist_8[1], hist_16[1] ])
+        self.curvature_hist = numpy.array(self.curvature_hist)
         
         #Saving all the data collected
         path_parts = path.split('/')
@@ -272,6 +273,8 @@ class mMesh:
         numpy.save(directory + "/" + filename + "_c", self.colors)
         numpy.save(directory + "/" + filename + "_sv", self.segmentVertices)
         numpy.save(directory + "/" + filename + "_bb", self.bboxes)
+        numpy.save(directory + "/" + filename + "_ch", self.curvature_hist)
+        numpy.save(directory + "/" + filename + "_ef", self.eigen_features)
         
         self.verticesAsString = self.vertices.tostring()
         

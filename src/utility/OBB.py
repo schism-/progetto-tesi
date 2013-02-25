@@ -510,6 +510,28 @@ class obb(object):
         print "Eigenvalues: \n" + str(w)
         print "Eigenvectors: \n" + str(v)
         
+        #Computing needed features from eigenvalues
+        eigen_features = []
+        s1 = float(w[0])
+        s2 = float(w[1])
+        s3 = float(w[2])
+        s_tot = float(s1 + s2 + s3)
+        
+        eigen_features.append( s1 / s_tot )
+        eigen_features.append( s2 / s_tot )
+        eigen_features.append( s3 / s_tot )
+        eigen_features.append( (s1 + s2) / s_tot )
+        eigen_features.append( (s1 + s3) / s_tot )
+        eigen_features.append( (s2 + s3) / s_tot )
+        eigen_features.append( s1 / s2 )
+        eigen_features.append( s1 / s3 )
+        eigen_features.append( s2 / s3 )
+        eigen_features.append( s1 / s2 + s1 / s3 )
+        eigen_features.append( s1 / s2 + s2 / s3 )
+        eigen_features.append( s1 / s3 + s2 / s3 )
+        
+        print "Eigen features: \n" + str(eigen_features)
+        
         r = numpy.array([0.0, 0.0, 0.0], 'f')
         u = numpy.array([0.0, 0.0, 0.0], 'f')
         f = numpy.array([0.0, 0.0, 0.0], 'f')
@@ -609,4 +631,4 @@ class obb(object):
         print "POINTS: " + str(p)
         print "done!"
         
-        return p
+        return [p, eigen_features]
