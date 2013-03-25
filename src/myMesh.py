@@ -110,11 +110,11 @@ def drawBBox(bbox):
 
 def loadModel(m, path, segpath):
     m.loadModel(path, segpath)
-    m.VBOVertices = vbo.VBO(m.vertices)
+    m.VBOVertices = vbo.VBO(m.seqVertices)
     m.VBONormals = vbo.VBO(m.normals)
     m.VBOColors = vbo.VBO(m.colors)
 
-def drawModel(m):
+def drawModel(m, quadric):
     m.VBOVertices.bind()
     glEnableClientState(GL_VERTEX_ARRAY)
     glVertexPointer(3, GL_FLOAT, 0, m.VBOVertices)
@@ -131,50 +131,38 @@ def drawModel(m):
         glDisableClientState(GL_COLOR_ARRAY)
         pass
     
-    glDrawArrays(GL_TRIANGLES, 0, len(m.vertices))
+    glDrawArrays(GL_TRIANGLES, 0, len(m.seqVertices))
+    
+    for s in m.components.keys():
+        for comp in m.components[s]:
+            points = comp.contactSlots
+            for data in points:
+                for p in data['points']:
+                    glPushMatrix()
+                    glTranslatef(*p)
+                    gluSphere(quadric,0.1,16,16)
+                    glPopMatrix()
+    
 
 def drawBBoxes(m):
-    for b in m.bboxes:
-        drawBBox(b)
-
-def drawSegments(m):
-    seg = m.segmentVertices[0]
-
-    vertices = numpy.zeros ((len(seg), 3), 'f')
-    
-    #print seg.tolist()
-    vIndex = 0
-    for idx in seg:
-        vertices[vIndex, 0] = m.vertices[idx[0], 0]
-        vertices[vIndex, 1] = m.vertices[idx[0], 1]
-        vertices[vIndex, 2] = m.vertices[idx[0], 2]
-
-        vIndex += 1
-
-    
-    VBOVertices = vbo.VBO(vertices)
-    
-    VBOVertices.bind()
-    glEnableClientState(GL_VERTEX_ARRAY)
-    glVertexPointer(3, GL_FLOAT, 0, VBOVertices)
-    glDrawArrays(GL_TRIANGLES, 0, len(vertices))
+    for s in m.components.keys():
+        for c in m.components[s]:
+            drawBBox(c.bbox)
 
 def init(width, height):
 
-    global g_fVBOSupported, meshes_loaded, gui_objects, mouseInteractor
+    global g_fVBOSupported, meshes_loaded, gui_objects, mouseInteractor, quadric
     #Check for VBOs Support
     g_fVBOSupported = IsExtensionSupported("GL_ARB_vertexbuffer_object")
-
+    quadric = gluNewQuadric()
     #Defining all interface objects
     buttonColor = (0.7, 0.7, 0.7)
     buttonOutlineColor = (0.8, 0.8, 0.8)
     
     b1 = Button( 20, 20, 160, 30, buttonColor, buttonOutlineColor, 'Load Elephant')
     b1.setCallback(loadElephant)
-    
     b2 = Button( 20, 60, 160, 30, buttonColor, buttonOutlineColor, 'Try.')
     b2.setCallback(try1)
-
     sl1 = Slider( 150, SCREEN_SIZE[0] - 50, 50 )
     
     gui_objects.append(b1)
@@ -189,62 +177,57 @@ def init(width, height):
     glEnable(GL_COLOR_MATERIAL)
     
     #Define lightning
+    lP = 7
+    lA = 0.1
+    lD = 0.2
+    lS = 0.5
     glEnable( GL_LIGHTING )
     glEnable( GL_LIGHT0 )
-    glLightModeli( GL_LIGHT_MODEL_TWO_SIDE, 0 )
-    lP = 600
+    glLightModelfv( GL_LIGHT_MODEL_AMBIENT, [1.0, 1.0, 1.0, 1] )
     glLightfv( GL_LIGHT0, GL_POSITION, [lP, lP, lP, 1] )
-    lA = 0.8
     glLightfv( GL_LIGHT0, GL_AMBIENT, [lA, lA, lA, 1] )
-    lD = 1
     glLightfv( GL_LIGHT0, GL_DIFFUSE, [lD, lD, lD, 1] )
-    lS = 1
     glLightfv( GL_LIGHT0, GL_SPECULAR, [lS, lS, lS, 1] )
     
-    glMaterialfv( GL_FRONT_AND_BACK, GL_AMBIENT, [0.1, 0.1, 0.1, 1] )
-    glMaterialfv( GL_FRONT_AND_BACK, GL_DIFFUSE, [0.4, 0.4, 0.4, 1] )
-    glMaterialfv( GL_FRONT_AND_BACK, GL_SPECULAR, [0.7, 0.6, 0.6, 1] )
+    glEnable( GL_LIGHT1 )
+    glLightModelfv( GL_LIGHT_MODEL_AMBIENT, [0.4, 0.4, 0.4, 1] )
+    glLightfv( GL_LIGHT1, GL_POSITION, [-lP/2.0, lP, lP, 1] )
+    glLightfv( GL_LIGHT1, GL_AMBIENT, [lA, lA, lA, 1] )
+    glLightfv( GL_LIGHT1, GL_DIFFUSE, [lD, lD, lD, 1] )
+    glLightfv( GL_LIGHT1, GL_SPECULAR, [lS, lS, lS, 1] )
+    
+    glMaterialfv( GL_FRONT_AND_BACK, GL_AMBIENT, [1.0, 1.0, 1.0, 1] )
+    glMaterialfv( GL_FRONT_AND_BACK, GL_DIFFUSE, [1.0, 1.0, 1.0, 1] )
+    glMaterialfv( GL_FRONT_AND_BACK, GL_SPECULAR, [1.0, 1.0, 1.0, 1] )
     glMaterialf( GL_FRONT_AND_BACK, GL_SHININESS, 50 )
     
     mouseInteractor = MouseInteractor( .01, 1 , gui_objects)
 
     #LOAD MODEL
     start = time()
+
     mesh = mMesh(g_fVBOSupported)
-    mesh_2 = mMesh(g_fVBOSupported)
-    mesh_3 = mMesh(g_fVBOSupported)
-    mesh_4 = mMesh(g_fVBOSupported)
-    mesh_5 = mMesh(g_fVBOSupported)
+    mesh2 = mMesh(g_fVBOSupported)
+    mesh3 = mMesh(g_fVBOSupported)
+    mesh4 = mMesh(g_fVBOSupported)
     
-    #loadModel(mesh, '../res/chairs/shapes/101.off', '../res/chairs/gt/101.seg')
-    #loadModel(mesh_2, '../res/chairs/shapes/102.off', '../res/chairs/gt/102.seg')
-    #loadModel(mesh_3, '../res/chairs/shapes/103.off', '../res/chairs/gt/103.seg')
-    #loadModel(mesh_4, '../res/chairs/shapes/109.off', '../res/chairs/gt/109.seg')
-    #loadModel(mesh_5, '../res/chairs/shapes/110.off', '../res/chairs/gt/110.seg')
+    #loadModel(mesh, '../res/tele-aliens/shapes/42.off', '../res/tele-aliens/gt/42.seg')
+    loadModel(mesh, '../res/chairs/shapes/20.off', '../res/chairs/gt/20.seg')
+    loadModel(mesh2, '../res/chairs/shapes/9.off', '../res/chairs/gt/9.seg')
+
     
-#    loadModel(mesh, '../res/tele-aliens/shapes/1.off', '../res/tele-aliens/gt/1.seg')
-#    loadModel(mesh_2, '../res/tele-aliens/shapes/2.off', '../res/tele-aliens/gt/2.seg')
-#    loadModel(mesh_3, '../res/tele-aliens/shapes/3.off', '../res/tele-aliens/gt/3.seg')
-#    loadModel(mesh_4, '../res/tele-aliens/shapes/4.off', '../res/tele-aliens/gt/4.seg')
-        
-    loadModel(mesh, '../res/chairs/json', '101')
-    loadModel(mesh_2, '../res/chairs/json', '102')
-    loadModel(mesh_3, '../res/chairs/json', '103')
-    loadModel(mesh_4, '../res/chairs/json', '109')
-    loadModel(mesh_5, '../res/chairs/json', '110')
-    
+    #loadModel(mesh, '../res/chairs/json', '0')
+
     meshes_loaded.append(mesh)
-    meshes_loaded.append(mesh_2)
-    meshes_loaded.append(mesh_3)
-    meshes_loaded.append(mesh_4)
-    meshes_loaded.append(mesh_5)
+    meshes_loaded.append(mesh2)
+
     
     print "Models loaded in %f" %(time() - start)
     print
     
 def drawScene():
     
-    global gui_objects, meshes_loaded
+    global gui_objects, meshes_loaded, quadric
     
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
@@ -264,37 +247,29 @@ def drawScene():
     #Draw all the stuff here
     glPushMatrix()
     for m in meshes_loaded:
-        drawModel(m)
-        glTranslatef( 2, 0, 0 )
+        drawModel(m, quadric)
+        glTranslatef( 3.5, 0, 0 )
     glPopMatrix()
     
     if (True):
         glPushMatrix()
         for m in meshes_loaded:
             drawBBoxes(m)
-            glTranslatef( 2, 0, 0 )
+            glTranslatef( 3.5, 0, 0 )
         glPopMatrix()
-    
-    #===========================================================================
-    # glTranslatef( 3, 0, 0 )
-    # for m in meshes_loaded:
-    #    drawSegments(m)
-    #===========================================================================
+
             
     #Draw all the interface here
     glDisable( GL_LIGHTING )
-    
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glOrtho(0, float(xSize), float(ySize), 0, -1, 1);
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-    
+    glMatrixMode(GL_PROJECTION)
+    glLoadIdentity()
+    glOrtho(0, float(xSize), float(ySize), 0, -1, 1)
+    glMatrixMode(GL_MODELVIEW)
+    glLoadIdentity()
     for obj in gui_objects:
         obj.draw()
-
     glEnable( GL_LIGHTING )
-    
+        
     glutSwapBuffers()
 
 def resizeWindow(width, height):

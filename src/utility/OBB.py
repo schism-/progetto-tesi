@@ -412,7 +412,7 @@ class obb(object):
         return p
     
     @staticmethod
-    def computeOBB_2(points):
+    def computeOBB_2(points, faces):
         vertices = points
         
         A_i = 0.0
@@ -432,30 +432,29 @@ class obb(object):
         
         E_zz = 0.0
         
-        for i in range(len(vertices)):
-            if i % 3 == 0:
-                p = vertices[i]
-                q = vertices[i + 1]
-                r = vertices[i + 2]
-                
-                mu_i = (p + q + r) / 3.0
-                
-                temp = numpy.cross((q - p), (r - p)) 
-                A_i = numpy.linalg.norm(temp)
-                A_i /= 2.0
-                
-                mu += mu_i * A_i
-                A_m += A_i
-        
-                E_xx += ( 9.0 * mu_i[0] * mu_i[0] + p[0] * p[0] + q[0] * q[0] + r[0] * r[0] ) * (A_i/12.0)
-                E_xy += ( 9.0 * mu_i[0] * mu_i[1] + p[0] * p[1] + q[0] * q[1] + r[0] * r[1] ) * (A_i/12.0)
-                E_xz += ( 9.0 * mu_i[0] * mu_i[2] + p[0] * p[2] + q[0] * q[2] + r[0] * r[2] ) * (A_i/12.0)
-                
-                
-                E_yy += ( 9.0 * mu_i[1] * mu_i[1] + p[1] * p[1] + q[1] * q[1] + r[1] * r[1] ) * (A_i/12.0)
-                E_yz += ( 9.0 * mu_i[1] * mu_i[2] + p[1] * p[2] + q[1] * q[2] + r[1] * r[2] ) * (A_i/12.0)
-                
-                E_zz += ( 9.0 * mu_i[2] * mu_i[2] + p[2] * p[2] + q[2] * q[2] + r[2] * r[2] ) * (A_i/12.0)
+        for f in faces:
+            p = vertices[f[0]]
+            q = vertices[f[1]]
+            r = vertices[f[2]]
+            
+            mu_i = (p + q + r) / 3.0
+            
+            temp = numpy.cross((q - p), (r - p)) 
+            A_i = numpy.linalg.norm(temp)
+            A_i /= 2.0
+            
+            mu += mu_i * A_i
+            A_m += A_i
+    
+            E_xx += ( 9.0 * mu_i[0] * mu_i[0] + p[0] * p[0] + q[0] * q[0] + r[0] * r[0] ) * (A_i/12.0)
+            E_xy += ( 9.0 * mu_i[0] * mu_i[1] + p[0] * p[1] + q[0] * q[1] + r[0] * r[1] ) * (A_i/12.0)
+            E_xz += ( 9.0 * mu_i[0] * mu_i[2] + p[0] * p[2] + q[0] * q[2] + r[0] * r[2] ) * (A_i/12.0)
+            
+            
+            E_yy += ( 9.0 * mu_i[1] * mu_i[1] + p[1] * p[1] + q[1] * q[1] + r[1] * r[1] ) * (A_i/12.0)
+            E_yz += ( 9.0 * mu_i[1] * mu_i[2] + p[1] * p[2] + q[1] * q[2] + r[1] * r[2] ) * (A_i/12.0)
+            
+            E_zz += ( 9.0 * mu_i[2] * mu_i[2] + p[2] * p[2] + q[2] * q[2] + r[2] * r[2] ) * (A_i/12.0)
         
         mu /= A_m
         E_xx /= A_m
@@ -476,20 +475,18 @@ class obb(object):
          
         E_zz -= mu[0,2] * mu[0,2]
         
-        print "E_x: " + str(mu[0,0])
-        print "E_y: " + str(mu[0,1])
-        print "E_z: " + str(mu[0,2])
-        print "E_xx: " + str(E_xx)
-        print "E_xy: " + str(E_xy)
-        print "E_xz: " + str(E_xz)
-        print "E_yx: " + str(E_xy)
-        print "E_yy: " + str(E_yy)
-        print "E_yz: " + str(E_yz)
-        print "E_zx: " + str(E_xz)
-        print "E_zy: " + str(E_yz)
-        print "E_zz: " + str(E_zz)
-        
-        
+#        print "E_x: " + str(mu[0,0])
+#        print "E_y: " + str(mu[0,1])
+#        print "E_z: " + str(mu[0,2])
+#        print "E_xx: " + str(E_xx)
+#        print "E_xy: " + str(E_xy)
+#        print "E_xz: " + str(E_xz)
+#        print "E_yx: " + str(E_xy)
+#        print "E_yy: " + str(E_yy)
+#        print "E_yz: " + str(E_yz)
+#        print "E_zx: " + str(E_xz)
+#        print "E_zy: " + str(E_yz)
+#        print "E_zz: " + str(E_zz)
         
         covariance_matrix[0][0] = E_xx
         covariance_matrix[0][1] = E_xy
@@ -501,14 +498,14 @@ class obb(object):
         covariance_matrix[2][1] = E_yz
         covariance_matrix[2][2] = E_zz
         
-        print "Covariance Matrix"
+#        print "Covariance Matrix"
         covariance_matrix = numpy.matrix(covariance_matrix, 'f')
-        print covariance_matrix
+#        print covariance_matrix
         
         w, v = numpy.linalg.eig(covariance_matrix)
         
-        print "Eigenvalues: \n" + str(w)
-        print "Eigenvectors: \n" + str(v)
+#        print "Eigenvalues: \n" + str(w)
+#        print "Eigenvectors: \n" + str(v)
         
         #Computing needed features from eigenvalues
         eigen_features = []
@@ -530,19 +527,19 @@ class obb(object):
         eigen_features.append( s1 / s2 + s2 / s3 )
         eigen_features.append( s1 / s3 + s2 / s3 )
         
-        print "Eigen features: \n" + str(eigen_features)
+#        print "Eigen features: \n" + str(eigen_features)
         
         r = numpy.array([0.0, 0.0, 0.0], 'f')
         u = numpy.array([0.0, 0.0, 0.0], 'f')
         f = numpy.array([0.0, 0.0, 0.0], 'f')
         
-        print "Eigenvectors0: \n" + str(v[0])
-        print "Eigenvectors1: \n" + str(v[1])
-        print "Eigenvectors2: \n" + str(v[2])
+#        print "Eigenvectors0: \n" + str(v[0])
+#        print "Eigenvectors1: \n" + str(v[1])
+#        print "Eigenvectors2: \n" + str(v[2])
         
-        print "R: \n" + str(r)
-        print "U: \n" + str(u)
-        print "F: \n" + str(f)
+#        print "R: \n" + str(r)
+#        print "U: \n" + str(u)
+#        print "F: \n" + str(f)
         
         r[0] = v[0,0]
         r[1] = v[1,0]
@@ -560,9 +557,9 @@ class obb(object):
         u /= numpy.linalg.norm(u)
         f /= numpy.linalg.norm(f)
         
-        print "r: " + str(r)
-        print "u: " + str(u)
-        print "f: " + str(f)
+#        print "r: " + str(r)
+#        print "u: " + str(u)
+#        print "f: " + str(f)
         
         transformation_matrix = numpy.zeros((3, 3), 'f')
         
@@ -578,7 +575,7 @@ class obb(object):
         transformation_matrix[2,1] = u[2]
         transformation_matrix[2,2] = f[2] 
         
-        print "Transformation Matrix: \n" + str(transformation_matrix)
+#        print "Transformation Matrix: \n" + str(transformation_matrix)
         
         p_min = [1e10, 1e10, 1e10]
         p_max = [-1e10, -1e10, -1e10]
@@ -606,8 +603,8 @@ class obb(object):
         p_max = numpy.array(p_max)
         p_min = numpy.array(p_min)
         
-        print "p_max: " + str(p_max)
-        print "p_min: " + str(p_min)
+#        print "p_max: " + str(p_max)
+#        print "p_min: " + str(p_min)
         
         delta = (p_max - p_min) / 2.0
         p_cen = (p_max + p_min) / 2.0
@@ -628,7 +625,7 @@ class obb(object):
         p[6] = (translation + r * delta[0] + u * delta[1] + f * delta[2]).tolist()
         p[7] = (translation - r * delta[0] + u * delta[1] + f * delta[2]).tolist()
         
-        print "POINTS: " + str(p)
-        print "done!"
+#        print "POINTS: " + str(p)
+#        print "done!"
         
         return [p, eigen_features]
