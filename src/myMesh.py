@@ -212,14 +212,14 @@ def init(width, height):
     mesh4 = mMesh(g_fVBOSupported)
     
     #loadModel(mesh, '../res/tele-aliens/shapes/42.off', '../res/tele-aliens/gt/42.seg')
-    loadModel(mesh, '../res/chairs/shapes/20.off', '../res/chairs/gt/20.seg')
-    loadModel(mesh2, '../res/chairs/shapes/9.off', '../res/chairs/gt/9.seg')
+    loadModel(mesh, '../res/chairs/shapes/1.off', '../res/chairs/gt/1.seg')
+    #loadModel(mesh2, '../res/chairs/shapes/9.off', '../res/chairs/gt/9.seg')
 
     
     #loadModel(mesh, '../res/chairs/json', '0')
 
     meshes_loaded.append(mesh)
-    meshes_loaded.append(mesh2)
+    #meshes_loaded.append(mesh2)
 
     
     print "Models loaded in %f" %(time() - start)

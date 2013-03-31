@@ -7,7 +7,6 @@ Created on 20/feb/2013
 import numpy
 
 def princomp(A,numpc=0):
-    
     # computing eigenvalues and eigenvectors of covariance matrix
     M = (A-numpy.mean(A.T,axis=1)).T # subtract the mean (along columns)
     [latent,coeff] = numpy.linalg.eig(numpy.cov(M))

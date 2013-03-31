@@ -88,16 +88,27 @@ class mSegment:
     def saveFeatures(self, directory):
         print "Saving features..."
         
-        derp = directory + "../seg_" + str(self.segmentId) + "_comp_" + str(self.componentName) + ".off"
+        #Saving a duplicate of the component mesh in a common directory, for easier extraction of other features (that has to be done externally)
+        derp = directory + "../seg_" + str(self.segmentId) + "_comp_" + str(self.componentName) + ".sdf.off"
+        derp2 = directory + "../seg_" + str(self.segmentId) + "_comp_" + str(self.componentName) + ".log.off"
         self.writeOFFFile( derp, self.vertices, self.faces )
+        self.writeOFFFile( derp2, self.vertices, self.faces )
         
         #Saving .OFF file
         comp_dir = directory + "comp_" + str(self.componentName)
         if( not os.path.isdir(comp_dir) ):
             os.mkdir(comp_dir)
-        
         self.writeOFFFile( comp_dir + "/mesh.off", self.vertices, self.faces )
-    
+        
+        numpy.save(comp_dir + "/bbox", self.bbox)
+        numpy.save(comp_dir + "/eigen", self.eigen_features)
+        numpy.save(comp_dir + "/curv", self.curvature_hist)
+        
+        arr = [ (v['seg'], v['comp'], len(v['points']), tuple(p for p in v['points']))  for v in self.contactSlots ]
+        dt = numpy.dtype( [ ('seg', 'i'), ('comp', 'i'), ('len', 'i'), ('points', 'f', (arr[0][2], 3)) ] )
+        arr = numpy.array(arr[0] , dt)
+        numpy.save(comp_dir + "/cont", arr)
+        
     def writeOFFFile(self, offpath, vertices, faces):
         try:
             fi = open(offpath, 'w')

@@ -27,9 +27,7 @@ def createHistogram(bin_num, array):
     
     return (boundaries_h, hist_h_values)
 
-if __name__ == "__main__":
-    directory = "../res/chairs/data/1/"
-    
+def parseHistograms(directory):
     #Check dei sdf files
     f = []
     for (dirpath, dirname, filenames) in walk(directory):
@@ -38,30 +36,53 @@ if __name__ == "__main__":
     
     for file in f:
         filename_parts = file.split('.') 
-        if filename_parts[-2] == 'sdf':
-            
-            sdf = open(directory + file)
-            sdf_values = []
-            for line in sdf:
-                sdf_values.append(float(line))
-            
-            _, hist_4 = createHistogram(4, sdf_values)
-            _, hist_8 = createHistogram(8, sdf_values)
-            _, hist_16 = createHistogram(16, sdf_values)
-
-            hist_4 = numpy.array(hist_4)
-            hist_8 = numpy.array(hist_8)
-            hist_16 = numpy.array(hist_16)
-            
-            path = filename_parts[0].split('_')
-            path = directory + "_".join([path[0], path[1]]) + "/" + "_".join([path[2], path[3]]) + "/"
-            
-            numpy.save(path + "sd_hist4", hist_4)
-            numpy.save(path + "sd_hist8", hist_8)
-            numpy.save(path + "sd_hist16", hist_16)
+        if len(filename_parts) > 3:
+            print '.'.join(filename_parts)
+            if filename_parts[-4] == 'sdf':
                 
-        
-        elif filename_parts[-2] == 'log':
-            pass
-        
+                sdf = open(directory + file)
+                sdf_values = []
+                for line in sdf:
+                    sdf_values.append(float(line))
+                
+                _, hist_4 = createHistogram(4, sdf_values)
+                _, hist_8 = createHistogram(8, sdf_values)
+                _, hist_16 = createHistogram(16, sdf_values)
+    
+                hist_4 = numpy.array(hist_4)
+                hist_8 = numpy.array(hist_8)
+                hist_16 = numpy.array(hist_16)
+                
+                path = filename_parts[0].split('_')
+                path = directory + "_".join([path[0], path[1]]) + "/" + "_".join([path[2], path[3]]) + "/"
+                
+                numpy.save(path + "sd_hist4", hist_4)
+                numpy.save(path + "sd_hist8", hist_8)
+                numpy.save(path + "sd_hist16", hist_16)
+                    
+            
+            elif filename_parts[-4] == 'log':
+                sdf = open(directory + file)
+                sdf_values = []
+                for line in sdf:
+                    sdf_values.append(float(line))
+                
+                _, hist_4 = createHistogram(4, sdf_values)
+                _, hist_8 = createHistogram(8, sdf_values)
+                _, hist_16 = createHistogram(16, sdf_values)
+    
+                hist_4 = numpy.array(hist_4)
+                hist_8 = numpy.array(hist_8)
+                hist_16 = numpy.array(hist_16)
+                
+                path = filename_parts[0].split('_')
+                path = directory + "_".join([path[0], path[1]]) + "/" + "_".join([path[2], path[3]]) + "/"
+                
+                numpy.save(path + "sd_log_hist4", hist_4)
+                numpy.save(path + "sd_log_hist8", hist_8)
+                numpy.save(path + "sd_log_hist16", hist_16)
+
+if __name__ == "__main__":
+    directory = "../res/chairs/data/1/"
+    parseHistograms(directory)
     print "done!"
